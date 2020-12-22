@@ -1,0 +1,83 @@
+version: "3.8"
+services:
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-lifecycle
+    ports:
+      - 9090:9090
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.36.0
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    privileged: true
+    ports:
+      - 8081:8080
+  alertmanager:
+    image: prom/alertmanager
+    volumes:
+      - ./alertmanager:/etc/alertmanager
+      - alertmanager-data:/alertmanager
+    ports:
+      - 9093:9093
+  traefik:
+    image: traefik:1.7
+    command: |
+      --accesslog \
+      --api \
+      --metrics \
+      --metrics.prometheus \
+      --metrics.prometheus.entryPoint="traefik" \
+      --web \
+      --docker \
+      --docker.watch \
+      --docker.network=traefik \
+      --docker.exposedbydefault=false \
+      --entryPoints="Name:http Address::80" \
+      --defaultentrypoints="http"
+    userns_mode: host
+    restart: always
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+  blackbox:
+    build: blackbox
+    ports:
+      - 9115:9115
+  maildev:
+    image: maildev/maildev
+    ports:
+      - "8082:80"
+  web1:
+    build: web1
+    ports:
+      - 8001:80
+    labels:
+      - traefik.frontend.rule=Host:web1-127-0-0-1.nip.io
+      - traefik.enable=true
+  web2:
+    build: web2
+    ports:
+      - 8002:80
+    labels:
+      - traefik.frontend.rule=Host:web2-127-0-0-1.nip.io
+      - traefik.enable=true
+
+volumes:
+  prometheus-data:
+  alertmanager-data:

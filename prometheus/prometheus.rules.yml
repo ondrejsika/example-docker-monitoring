@@ -1,0 +1,25 @@
+groups:
+  - name: alerts
+    rules:
+      - alert: up
+        expr: up == 0
+        for: 10s
+        labels:
+          severity: warn
+        annotations:
+          summary: "Job '{{ $labels.job }}' with target '{{ $labels.instance }}' us down."
+      - alert: slow_requests
+        expr: (traefik_backend_request_duration_seconds_sum{ code="200", method="GET", protocol="http"} / traefik_backend_request_duration_seconds_count{ code="200", method="GET", protocol="http"}) > 0.1
+        for: 5s
+        labels:
+          severity: page
+      - alert: high_request_rate
+        expr: rate(traefik_backend_request_duration_seconds_count{ code="200", method="GET", protocol="http"}[4m]) > 10
+        for: 5s
+        labels:
+          severity: page
+      - alert: probe_success
+        expr: probe_success == 0
+        for: 5s
+        labels:
+          severity: page
